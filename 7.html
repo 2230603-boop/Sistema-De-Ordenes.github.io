@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Órdenes en Tiempo Real - Embotelladora Mayol</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --pending-color: #9b59b6;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Estilos de autenticación */
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .login-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+        
+        .login-form .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .login-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .login-form input, .login-form select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        /* Estilos del sistema principal */
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-role {
+            background: var(--secondary-color);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #27ae60;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.offline {
+            background-color: #e74c3c;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .nav-tabs {
+            display: flex;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .nav-tab.active {
+            border-bottom: 3px solid var(--secondary-color);
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+        
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-item input {
+            width: auto;
+            margin-right: 5px;
+        }
+        
+        .signature-area {
+            border: 1px dashed #ccc;
+            padding: 15px;
+            text-align: center;
+            margin-top: 10px;
+            min-height: 80px;
+            color: #888;
+            font-style: italic;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .btn-danger {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning-color);
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e67e22;
+        }
+        
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .dashboard {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        .dashboard h2 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stats-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            flex: 1;
+            min-width: 180px;
+            background-color: var(--light-color);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .orders-table th, .orders-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .orders-table th {
+            background-color: var(--primary-color);
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        
+        .orders-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .status-pendiente {
+            background-color: var(--pending-color);
+        }
+        
+        .status-proceso {
+            background-color: var(--secondary-color);
+        }
+        
+        .status-completado {
+            background-color: var(--success-color);
+        }
+        
+        .status-cancelado {
+            background-color: var(--accent-color);
+        }
+        
+        .status-baja { background-color: #27ae60; }
+        .status-media { background-color: #f39c12; }
+        .status-alta { background-color: #e67e22; }
+        .status-urgente { background-color: #e74c3c; }
+        
+        .empty-message {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        .action-btn {
+            padding: 4px 8px;
+            margin: 0 2px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .btn-edit {
+            background-color: var(--warning-color);
+            color: white;
+        }
+        
+        .btn-complete {
+            background-color: var(--success-color);
+            color: white;
+        }
+        
+        .btn-cancel {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        
+        .btn-proceso {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn-pendiente {
+            background-color: var(--pending-color);
+            color: white;
+        }
+        
+        .btn-reactivar {
+            background-color: #16a085;
+            color: white;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: var(--success-color);
+            color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: var(--accent-color);
+        }
+        
+        .notification.info {
+            background: var(--secondary-color);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .notification-item {
+            background: var(--light-color);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid var(--secondary-color);
+            position: relative;
+        }
+        
+        .notification-item.urgente {
+            border-left-color: var(--accent-color);
+        }
+        
+        .btn-delete-notification {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .order-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .order-details h4 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .order-details p {
+            margin: 5px 0;
+        }
+
+        /* Modal de edición */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 2% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 95%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-header h3 {
+            color: var(--primary-color);
+            margin: 0;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .close-modal:hover {
+            color: var(--accent-color);
+        }
+
+        .timeline {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .timeline-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .timeline-item:last-child {
+            border-bottom: none;
+        }
+
+        .timeline-time {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .timeline-event {
+            margin-left: 10px;
+        }
+
+        .comunicacion-jefe {
+            background: #e8f4fd;
+            border-left: 4px solid var(--secondary-color);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .form-group {
+                width: 100%;
+            }
+            
+            .checkbox-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+            }
+            
+            .stats-container {
+                flex-direction: column;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+
+            .orders-table {
+                font-size: 12px;
+            }
+            
+            .orders-table th, .orders-table td {
+                padding: 6px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Pantalla de Login -->
+    <div id="loginScreen" class="login-container">
+        <h2>Sistema de Órdenes en Tiempo Real</h2>
+        <form class="login-form" id="loginForm">
+            <div class="form-group">
+                <label for="username">Usuario:</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Contraseña:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit" class="btn-login">Iniciar Sesión</button>
+        </form>
+    </div>
+
+    <!-- Sistema Principal (oculto inicialmente) -->
+    <div id="mainSystem" class="container hidden">
+        <div class="header">
+            <div class="logo">EMBOTELLADORA MAYOL S.A. DE C.V</div>
+            <div class="user-info">
+                <span id="currentUser">Usuario</span>
+                <span class="user-role" id="currentRole">Rol</span>
+                <div class="connection-status">
+                    <div class="status-dot" id="connectionStatus"></div>
+                    <span id="connectionText">Conectado</span>
+                </div>
+                <button id="logoutBtn" class="btn btn-secondary">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <div class="nav-tab active" data-tab="dashboard">Dashboard</div>
+            <div class="nav-tab" data-tab="nueva-orden" id="tabNuevaOrden">Nueva Orden</div>
+            <div class="nav-tab" data-tab="ordenes" id="tabOrdenes">Órdenes</div>
+            <div class="nav-tab" data-tab="notificaciones" id="tabNotificaciones">Notificaciones</div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="tab-content active">
+            <div class="dashboard">
+                <h2>Dashboard de Órdenes de Trabajo</h2>
+                
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div>Total Programadas</div>
+                        <div class="stat-number" id="totalProgramadas">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Pendientes</div>
+                        <div class="stat-number" id="pendientes">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>En Proceso</div>
+                        <div class="stat-number" id="enProceso">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Completadas</div>
+                        <div class="stat-number" id="completadas">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>No Realizadas</div>
+                        <div class="stat-number" id="noRealizadas">0</div>
+                    </div>
+                </div>
+                
+                <h3>Órdenes No Realizadas</h3>
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>No. Orden</th>
+                            <th>Máquina/Equipo</th>
+                            <th>Fecha Programada</th>
+                            <th>Descripción del Problema</th>
+                            <th>Motivo de No Realización</th>
+                            <th>Fecha/Hora Cancelación</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaNoRealizadas">
+                        <tr>
+                            <td colspan="6" class="empty-message">No hay órdenes no realizadas</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Nueva Orden -->
+        <div id="nueva-orden" class="tab-content">
+            <div class="form-container">
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="solicitante">SOLICITANTE</label>
+                            <input type="text" id="solicitante" value="RODRIGO SAMPERIO">
+                        </div>
+                        <div class="form-group">
+                            <label for="responsable">RESPONSABLE</label>
+                            <!-- CORRECCIÓN 1: Solo Benito Suarez -->
+                            <select id="responsable">
+                                <option value="Benito Suarez">BENITO SUAREZ</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="maquina">MÁQUINA/EQUIPO</label>
+                            <input type="text" id="maquina" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="prioridad">PRIORIDAD</label>
+                            <select id="prioridad" required>
+                                <option value="baja">Baja</option>
+                                <option value="media">Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <label for="descripcion">DESCRIPCIÓN DEL PROBLEMA</label>
+                    <textarea id="descripcion" required></textarea>
+                </div>
+                
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fechaPedido">FECHA Y HORA DEL PEDIDO</label>
+                            <input type="datetime-local" id="fechaPedido">
+                        </div>
+                        <div class="form-group">
+                            <label for="fechaPrometida">FECHA PROMETIDA</label>
+                            <input type="date" id="fechaPrometida" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <label>TIPO DE MANTENIMIENTO</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="preventivo">
+                            <label for="preventivo">PREVENTIVO</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="correctivo">
+                            <label for="correctivo">CORRECTIVO</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <label for="linea">LÍNEA DE PRODUCCIÓN</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="linea1">
+                            <label for="linea1">LÍNEA #1</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="linea2">
+                            <label for="linea2">LÍNEA #2</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="linea3">
+                            <label for="linea3">LÍNEA #3</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="linea6">
+                            <label for="linea6">LÍNEA #6</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <label for="observaciones">OBSERVACIONES INICIALES</label>
+                    <textarea id="observaciones"></textarea>
+                </div>
+                
+                <div class="actions">
+                    <button class="btn btn-secondary" id="btnCancelar">Cancelar</button>
+                    <button class="btn btn-primary" id="btnGuardar">Guardar Orden</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Órdenes -->
+        <div id="ordenes" class="tab-content">
+            <div class="dashboard">
+                <h2 id="tituloOrdenes">Órdenes de Trabajo</h2>
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>No. Orden</th>
+                            <th>Máquina/Equipo</th>
+                            <th>Descripción</th>
+                            <th>Prioridad</th>
+                            <th>Fecha Prometida</th>
+                            <th>Estado</th>
+                            <th>Última Actualización</th>
+                            <th>Completada/Cancelada</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaOrdenes">
+                        <tr>
+                            <td colspan="9" class="empty-message">No hay órdenes asignadas</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Notificaciones -->
+        <div id="notificaciones" class="tab-content">
+            <div class="dashboard">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2>Notificaciones</h2>
+                    <button class="btn btn-danger" id="btnLimpiarNotificaciones">Limpiar Mis Notificaciones</button>
+                </div>
+                <div id="listaNotificaciones">
+                    <div class="empty-message">No hay notificaciones</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Edición y Comunicación -->
+    <div id="modalEditar" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Gestión de Orden de Trabajo</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="form-container">
+                <div class="form-section">
+                    <h4>Información de la Orden</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editarSolicitante">SOLICITANTE</label>
+                            <input type="text" id="editarSolicitante" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="editarResponsable">RESPONSABLE</label>
+                            <!-- CORRECCIÓN 1: Solo Benito Suarez -->
+                            <select id="editarResponsable">
+                                <option value="Benito Suarez">BENITO SUAREZ</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editarMaquina">MÁQUINA/EQUIPO</label>
+                            <input type="text" id="editarMaquina" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editarPrioridad">PRIORIDAD</label>
+                            <select id="editarPrioridad" required>
+                                <option value="baja">Baja</option>
+                                <option value="media">Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <label for="editarDescripcion">DESCRIPCIÓN DEL PROBLEMA</label>
+                    <textarea id="editarDescripcion" required></textarea>
+                </div>
+
+                <!-- Sección de Comunicación Jefe-Responsable -->
+                <div class="form-section" id="seccionComunicacion">
+                    <h4>Comunicación y Actualizaciones</h4>
+                    <div class="form-group">
+                        <label for="comunicacionJefe">INSTRUCCIONES/ACTUALIZACIONES DEL JEFE:</label>
+                        <textarea id="comunicacionJefe" placeholder="Ej: Los repuestos ya están disponibles en almacén, puedes proceder con la reparación..."></textarea>
+                    </div>
+                    <button class="btn btn-warning" id="btnEnviarComunicacion">Enviar Actualización al Responsable</button>
+                </div>
+
+                <!-- Historial de la Orden -->
+                <div class="form-section">
+                    <h4>Historial de la Orden</h4>
+                    <div class="timeline" id="timelineOrden">
+                        <div class="empty-message">No hay historial disponible</div>
+                    </div>
+                </div>
+                
+                <div class="actions">
+                    <button class="btn btn-secondary" id="btnCancelarEdicion">Cerrar</button>
+                    <button class="btn btn-primary" id="btnGuardarEdicion">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificación flotante -->
+    <div id="notification" class="notification">
+        <span id="notificationText">Nueva orden asignada</span>
+    </div>
+
+    <script>
+        // ✅ CONFIGURACIÓN DE FIREBASE CON TUS CREDENCIALES
+        const firebaseConfig = {
+            apiKey: "AIzaSyB1ywwzR49KiEZC16_rhh9pmw0aMfT8Zxo",
+            authDomain: "sistema-de-ordenes-de-trabajo.firebaseapp.com",
+            databaseURL: "https://sistema-de-ordenes-de-trabajo-default-rtdb.firebaseio.com",
+            projectId: "sistema-de-ordenes-de-trabajo",
+            storageBucket: "sistema-de-ordenes-de-trabajo.firebasestorage.app",
+            messagingSenderId: "328684805267",
+            appId: "1:328684805267:web:ebbd2d1957ad7275ea4166",
+            measurementId: "G-SGVGP74MBL"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // 🔄 LIMPIAR TODOS LOS DATOS EXISTENTES
+        function limpiarBaseDeDatos() {
+            if (confirm('¿Está seguro de que desea LIMPIAR TODOS los datos existentes? Esto no se puede deshacer.')) {
+                db.ref('ordenes').remove();
+                db.ref('notificaciones').remove();
+                db.ref('contador').set(1);
+                mostrarNotificacion('Base de datos limpiada correctamente', 'info');
+            }
+        }
+
+        // Variables globales - INICIAR VACÍAS
+        let ordenes = [];
+        let notificaciones = [];
+        let currentUser = null;
+        let currentRole = null;
+        let ordenEditando = null;
+
+        // Elementos del DOM
+        const loginScreen = document.getElementById('loginScreen');
+        const mainSystem = document.getElementById('mainSystem');
+        const loginForm = document.getElementById('loginForm');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const currentUserSpan = document.getElementById('currentUser');
+        const currentRoleSpan = document.getElementById('currentRole');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectionText = document.getElementById('connectionText');
+        const notification = document.getElementById('notification');
+        const notificationText = document.getElementById('notificationText');
+        const tituloOrdenes = document.getElementById('tituloOrdenes');
+        const btnLimpiarNotificaciones = document.getElementById('btnLimpiarNotificaciones');
+        
+        // Elementos del modal de edición
+        const modalEditar = document.getElementById('modalEditar');
+        const closeModal = document.querySelector('.close-modal');
+        const btnCancelarEdicion = document.getElementById('btnCancelarEdicion');
+        const btnGuardarEdicion = document.getElementById('btnGuardarEdicion');
+        const btnEnviarComunicacion = document.getElementById('btnEnviarComunicacion');
+        const comunicacionJefe = document.getElementById('comunicacionJefe');
+        const timelineOrden = document.getElementById('timelineOrden');
+
+        // Sistema de autenticación mejorado con usuarios específicos
+        const usuarios = {
+            'RODRIGO': { password: 'produccion_0', role: 'jefe', nombre: 'RODRIGO SAMPERIO' },
+            'BENITO': { password: 'mantenimiento_01', role: 'responsable', nombre: 'BENITO SUAREZ' }
+        };
+
+        // Función para formatear fecha como DD/MM/YYYY
+        function obtenerFechaActual() {
+            const ahora = new Date();
+            const dia = String(ahora.getDate()).padStart(2, '0');
+            const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+            const año = ahora.getFullYear();
+            return { dia, mes, año };
+        }
+
+        // Función para obtener fecha y hora actual en formato legible
+        function obtenerFechaHoraActual() {
+            const ahora = new Date();
+            return ahora.toLocaleString('es-MX', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+        // Función para generar número de orden con nuevo formato: OT/DD/MM/YYYY/N
+        function generarNumeroOrden(contador) {
+            const fecha = obtenerFechaActual();
+            return `OT/${fecha.dia}/${fecha.mes}/${fecha.año}/${contador}`;
+        }
+
+        // Función para mostrar notificación
+        function mostrarNotificacion(mensaje, tipo = 'info') {
+            notificationText.textContent = mensaje;
+            notification.className = 'notification';
+            notification.classList.add(tipo);
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+
+        // CORRECCIÓN 3: Función para actualizar notificaciones con filtro por usuario
+        function actualizarNotificaciones() {
+            const listaNotificaciones = document.getElementById('listaNotificaciones');
+            
+            // Filtrar notificaciones solo para el usuario actual
+            const notificacionesUsuario = notificaciones.filter(notif => 
+                notif.destinatario === currentUser || notif.destinatario === usuarios[currentUser]?.nombre
+            );
+            
+            if (notificacionesUsuario.length === 0) {
+                listaNotificaciones.innerHTML = '<div class="empty-message">No hay notificaciones</div>';
+            } else {
+                let notificacionesHTML = '';
+                notificacionesUsuario.forEach((notif, index) => {
+                    notificacionesHTML += `
+                        <div class="notification-item ${notif.tipo === 'urgente' ? 'urgente' : ''}">
+                            <h4>${notif.titulo}</h4>
+                            <p>${notif.mensaje}</p>
+                            ${notif.detalles ? `<div class="order-details">
+                                <h4>Detalles:</h4>
+                                <p><strong>Máquina:</strong> ${notif.detalles.maquina}</p>
+                                <p><strong>Descripción:</strong> ${notif.detalles.descripcion}</p>
+                                <p><strong>Prioridad:</strong> ${notif.detalles.prioridad}</p>
+                                <p><strong>Fecha Prometida:</strong> ${notif.detalles.fechaPrometida}</p>
+                                <p><strong>Tipo de Mantenimiento:</strong> ${notif.detalles.tipoMantenimiento}</p>
+                                <p><strong>Líneas:</strong> ${notif.detalles.lineas}</p>
+                            </div>` : ''}
+                            <small>${new Date(notif.timestamp).toLocaleString()}</small>
+                            <button class="btn-delete-notification" onclick="eliminarNotificacion('${notif.key}')">Eliminar</button>
+                        </div>
+                    `;
+                });
+                listaNotificaciones.innerHTML = notificacionesHTML;
+            }
+        }
+
+        // Función para actualizar el timeline/historial de una orden
+        function actualizarTimeline(orden) {
+            if (!orden.historial) {
+                timelineOrden.innerHTML = '<div class="empty-message">No hay historial disponible</div>';
+                return;
+            }
+
+            let timelineHTML = '';
+            orden.historial.forEach(evento => {
+                timelineHTML += `
+                    <div class="timeline-item">
+                        <span class="timeline-time">${evento.fecha}</span>
+                        <span class="timeline-event">${evento.descripcion}</span>
+                        ${evento.detalles ? `<br><small>${evento.detalles}</small>` : ''}
+                    </div>
+                `;
+            });
+
+            // Agregar comunicación del jefe si existe
+            if (orden.comunicacionJefe && orden.comunicacionJefe.length > 0) {
+                orden.comunicacionJefe.forEach(comunicacion => {
+                    timelineHTML += `
+                        <div class="timeline-item">
+                            <span class="timeline-time">${comunicacion.fecha}</span>
+                            <div class="comunicacion-jefe">
+                                <strong>Actualización del Jefe:</strong>
+                                <p>${comunicacion.mensaje}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            timelineOrden.innerHTML = timelineHTML;
+        }
+
+        // Función para abrir modal de edición
+        function abrirModalEdicion(ordenId) {
+            const orden = ordenes.find(o => o.id === ordenId);
+            if (!orden) return;
+
+            ordenEditando = orden;
+
+            // Llenar el formulario con los datos actuales
+            document.getElementById('editarSolicitante').value = orden.solicitante || '';
+            document.getElementById('editarResponsable').value = orden.responsable || '';
+            document.getElementById('editarMaquina').value = orden.maquina || '';
+            document.getElementById('editarPrioridad').value = orden.prioridad || 'baja';
+            document.getElementById('editarDescripcion').value = orden.descripcion || '';
+            
+            // Limpiar campo de comunicación
+            comunicacionJefe.value = '';
+
+            // Actualizar timeline
+            actualizarTimeline(orden);
+
+            // Mostrar/ocultar sección de comunicación según el rol
+            const seccionComunicacion = document.getElementById('seccionComunicacion');
+            if (currentRole === 'jefe') {
+                seccionComunicacion.style.display = 'block';
+            } else {
+                seccionComunicacion.style.display = 'none';
+            }
+
+            // Mostrar modal
+            modalEditar.style.display = 'block';
+        }
+
+        // Función para cerrar modal de edición
+        function cerrarModalEdicion() {
+            modalEditar.style.display = 'none';
+            ordenEditando = null;
+        }
+
+        // Función para enviar comunicación del jefe al responsable
+        function enviarComunicacionJefe() {
+            if (!ordenEditando || !comunicacionJefe.value.trim()) {
+                alert('Por favor, escriba un mensaje para el responsable');
+                return;
+            }
+
+            const ordenIndex = ordenes.findIndex(o => o.id === ordenEditando.id);
+            if (ordenIndex !== -1) {
+                const comunicacion = {
+                    mensaje: comunicacionJefe.value.trim(),
+                    fecha: obtenerFechaHoraActual(),
+                    enviadoPor: currentUser
+                };
+
+                // Agregar comunicación al historial
+                if (!ordenes[ordenIndex].comunicacionJefe) {
+                    ordenes[ordenIndex].comunicacionJefe = [];
+                }
+                ordenes[ordenIndex].comunicacionJefe.push(comunicacion);
+
+                // Si la orden estaba cancelada, reactivarla
+                if (ordenes[ordenIndex].estado === 'cancelado') {
+                    ordenes[ordenIndex].estado = 'pendiente';
+                    ordenes[ordenIndex].fechaReactivacion = obtenerFechaHoraActual();
+                    
+                    // Agregar evento al historial
+                    if (!ordenes[ordenIndex].historial) {
+                        ordenes[ordenIndex].historial = [];
+                    }
+                    ordenes[ordenIndex].historial.push({
+                        fecha: obtenerFechaHoraActual(),
+                        descripcion: 'Orden reactivada por el jefe',
+                        detalles: `Motivo: ${comunicacionJefe.value.trim()}`
+                    });
+                }
+
+                // Guardar en Firebase
+                db.ref('ordenes').set(ordenes);
+
+                // Crear notificación para el responsable
+                crearNotificacion(
+                    'Actualización en orden de trabajo',
+                    `El jefe ha actualizado la orden ${ordenEditando.id}: ${comunicacionJefe.value.substring(0, 100)}...`,
+                    'urgente',
+                    'BENITO' // Destinatario específico
+                );
+
+                mostrarNotificacion('Comunicación enviada al responsable', 'info');
+                comunicacionJefe.value = '';
+                actualizarTimeline(ordenes[ordenIndex]);
+                actualizarDashboard();
+                actualizarTablaOrdenes();
+            }
+        }
+
+        // Función para guardar cambios de edición
+        function guardarCambiosEdicion() {
+            if (!ordenEditando) return;
+
+            const solicitante = document.getElementById('editarSolicitante').value;
+            const responsable = document.getElementById('editarResponsable').value;
+            const maquina = document.getElementById('editarMaquina').value;
+            const prioridad = document.getElementById('editarPrioridad').value;
+            const descripcion = document.getElementById('editarDescripcion').value;
+
+            if (!maquina || !descripcion) {
+                alert('Por favor, complete todos los campos obligatorios');
+                return;
+            }
+
+            // Actualizar la orden
+            const ordenIndex = ordenes.findIndex(o => o.id === ordenEditando.id);
+            if (ordenIndex !== -1) {
+                ordenes[ordenIndex] = {
+                    ...ordenes[ordenIndex],
+                    solicitante,
+                    responsable,
+                    maquina,
+                    prioridad,
+                    descripcion
+                };
+
+                // Guardar en Firebase
+                db.ref('ordenes').set(ordenes);
+
+                mostrarNotificacion(`Orden ${ordenEditando.id} actualizada correctamente`, 'info');
+                cerrarModalEdicion();
+            }
+        }
+
+        // Función para actualizar el dashboard
+        function actualizarDashboard() {
+            let ordenesFiltradas = [];
+            
+            if (currentRole === 'jefe') {
+                ordenesFiltradas = ordenes;
+            } else if (currentRole === 'responsable') {
+                ordenesFiltradas = ordenes.filter(o => o.responsable === 'Benito Suarez');
+            }
+            
+            const totalProgramadas = ordenesFiltradas.length;
+            const pendientes = ordenesFiltradas.filter(o => o.estado === 'pendiente').length;
+            const enProceso = ordenesFiltradas.filter(o => o.estado === 'proceso').length;
+            const completadas = ordenesFiltradas.filter(o => o.estado === 'completado').length;
+            const noRealizadas = ordenesFiltradas.filter(o => o.estado === 'cancelado').length;
+            
+            document.getElementById('totalProgramadas').textContent = totalProgramadas;
+            document.getElementById('pendientes').textContent = pendientes;
+            document.getElementById('enProceso').textContent = enProceso;
+            document.getElementById('completadas').textContent = completadas;
+            document.getElementById('noRealizadas').textContent = noRealizadas;
+            
+            const tablaNoRealizadas = document.getElementById('tablaNoRealizadas');
+            const ordenesNoRealizadas = ordenesFiltradas.filter(o => o.estado === 'cancelado');
+            
+            if (ordenesNoRealizadas.length === 0) {
+                tablaNoRealizadas.innerHTML = '<tr><td colspan="6" class="empty-message">No hay órdenes no realizadas</td></tr>';
+            } else {
+                let tablaHTML = '';
+                ordenesNoRealizadas.forEach(orden => {
+                    tablaHTML += `
+                        <tr>
+                            <td>${orden.id}</td>
+                            <td>${orden.maquina}</td>
+                            <td>${orden.fechaPrometida}</td>
+                            <td>${orden.descripcion}</td>
+                            <td>${orden.motivoCancelacion || 'Sin motivo especificado'}</td>
+                            <td>${orden.fechaCancelacion || 'N/A'}</td>
+                        </tr>
+                    `;
+                });
+                tablaNoRealizadas.innerHTML = tablaHTML;
+            }
+        }
+
+        // CORRECCIÓN 2: Función para actualizar la tabla de órdenes con fecha/hora en "En Proceso"
+        function actualizarTablaOrdenes() {
+            const tablaOrdenes = document.getElementById('tablaOrdenes');
+            let ordenesFiltradas = [];
+            
+            if (currentRole === 'jefe') {
+                ordenesFiltradas = ordenes;
+                tituloOrdenes.textContent = 'Todas las Órdenes de Trabajo';
+            } else if (currentRole === 'responsable') {
+                ordenesFiltradas = ordenes.filter(o => o.responsable === 'Benito Suarez');
+                tituloOrdenes.textContent = 'Mis Órdenes de Trabajo';
+            }
+            
+            // Ordenar por timestamp descendente (más recientes primero)
+            ordenesFiltradas.sort((a, b) => b.timestamp - a.timestamp);
+            
+            if (ordenesFiltradas.length === 0) {
+                tablaOrdenes.innerHTML = '<tr><td colspan="9" class="empty-message">No hay órdenes asignadas</td></tr>';
+            } else {
+                let tablaHTML = '';
+                ordenesFiltradas.forEach(orden => {
+                    const estadoClass = `status-${orden.estado}`;
+                    const prioridadClass = `status-${orden.prioridad}`;
+                    
+                    // CORRECCIÓN 2: Determinar la última actualización - INCLUYENDO PROCESO
+                    let ultimaActualizacion = 'N/A';
+                    if (orden.fechaCompletado) {
+                        ultimaActualizacion = `Completada: ${orden.fechaCompletado}`;
+                    } else if (orden.fechaCancelacion) {
+                        ultimaActualizacion = `Cancelada: ${orden.fechaCancelacion}`;
+                    } else if (orden.fechaProceso) {
+                        ultimaActualizacion = `En proceso: ${orden.fechaProceso}`;
+                    } else if (orden.fechaPendiente) {
+                        ultimaActualizacion = `Pendiente: ${orden.fechaPendiente}`;
+                    }
+
+                    // Columna de completada/cancelada
+                    let fechaFinal = 'N/A';
+                    if (orden.fechaCompletado) {
+                        fechaFinal = orden.fechaCompletado;
+                    } else if (orden.fechaCancelacion) {
+                        fechaFinal = orden.fechaCancelacion;
+                    }
+
+                    tablaHTML += `
+                        <tr>
+                            <td>${orden.id}</td>
+                            <td>${orden.maquina}</td>
+                            <td title="${orden.descripcion}">${orden.descripcion.substring(0, 50)}${orden.descripcion.length > 50 ? '...' : ''}</td>
+                            <td><span class="status-badge ${prioridadClass}">${orden.prioridad}</span></td>
+                            <td>${orden.fechaPrometida}</td>
+                            <td><span class="status-badge ${estadoClass}">${orden.estado}</span></td>
+                            <td>${ultimaActualizacion}</td>
+                            <td>${fechaFinal}</td>
+                            <td>
+                                ${currentRole === 'responsable' && orden.estado !== 'completado' && orden.estado !== 'cancelado' ? 
+                                    `<button class="action-btn btn-pendiente" onclick="marcarComoPendiente('${orden.id}')">Pendiente</button>
+                                     <button class="action-btn btn-proceso" onclick="cambiarEstado('${orden.id}', 'proceso')">En Proceso</button>
+                                     <button class="action-btn btn-complete" onclick="cambiarEstado('${orden.id}', 'completado')">Completar</button>
+                                     <button class="action-btn btn-cancel" onclick="cancelarOrden('${orden.id}')">Cancelar</button>` : ''}
+                                ${currentRole === 'jefe' ? 
+                                    `<button class="action-btn btn-edit" onclick="abrirModalEdicion('${orden.id}')">Gestionar</button>` : ''}
+                                ${currentRole === 'responsable' && orden.estado === 'cancelado' && orden.comunicacionJefe && orden.comunicacionJefe.length > 0 ? 
+                                    `<button class="action-btn btn-reactivar" onclick="reactivarOrden('${orden.id}')">Reactivar</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+                tablaOrdenes.innerHTML = tablaHTML;
+            }
+        }
+
+        // Función para reactivar una orden cancelada
+        function reactivarOrden(ordenId) {
+            const ordenIndex = ordenes.findIndex(o => o.id === ordenId);
+            if (ordenIndex !== -1) {
+                const orden = ordenes[ordenIndex];
+                orden.estado = 'pendiente';
+                orden.fechaReactivacion = obtenerFechaHoraActual();
+                
+                // Agregar al historial
+                if (!orden.historial) {
+                    orden.historial = [];
+                }
+                orden.historial.push({
+                    fecha: obtenerFechaHoraActual(),
+                    descripcion: 'Orden reactivada por el responsable',
+                    detalles: 'El responsable ha reactivado la orden basado en las actualizaciones del jefe'
+                });
+
+                // Guardar en Firebase
+                db.ref('ordenes').set(ordenes);
+
+                // Crear notificación
+                crearNotificacion(
+                    `Orden ${ordenId} reactivada`,
+                    `El responsable ha reactivado la orden basado en tus actualizaciones`,
+                    'reactivacion',
+                    'RODRIGO'
+                );
+
+                mostrarNotificacion(`Orden ${ordenId} reactivada`, 'info');
+                actualizarDashboard();
+                actualizarTablaOrdenes();
+            }
+        }
+
+        // Función para marcar una orden como pendiente
+        function marcarComoPendiente(ordenId) {
+            const motivo = prompt('Ingrese el motivo por el cual la orden se encuentra pendiente:');
+            if (motivo === null) return;
+            
+            const ordenIndex = ordenes.findIndex(o => o.id === ordenId);
+            if (ordenIndex !== -1) {
+                const orden = ordenes[ordenIndex];
+                orden.estado = 'pendiente';
+                orden.motivoPendiente = motivo;
+                orden.fechaPendiente = obtenerFechaHoraActual();
+                
+                // Agregar al historial
+                if (!orden.historial) {
+                    orden.historial = [];
+                }
+                orden.historial.push({
+                    fecha: obtenerFechaHoraActual(),
+                    descripcion: 'Orden marcada como pendiente',
+                    detalles: `Motivo: ${motivo}`
+                });
+
+                // Guardar en Firebase
+                db.ref('ordenes').set(ordenes);
+                
+                // Crear notificación para el jefe
+                crearNotificacion(
+                    `Orden ${ordenId} marcada como pendiente`,
+                    `La orden ha sido marcada como pendiente. Motivo: ${motivo}`,
+                    'pendiente',
+                    'RODRIGO'
+                );
+                
+                mostrarNotificacion(`Orden ${ordenId} marcada como pendiente`, 'info');
+                actualizarDashboard();
+                actualizarTablaOrdenes();
+            }
+        }
+
+        // CORRECCIÓN 2: Función para cambiar el estado de una orden - MEJORADA
+        function cambiarEstado(ordenId, nuevoEstado) {
+            const ordenIndex = ordenes.findIndex(o => o.id === ordenId);
+            if (ordenIndex !== -1) {
+                const orden = ordenes[ordenIndex];
+                const estadoAnterior = orden.estado;
+                orden.estado = nuevoEstado;
+                
+                // Registrar fecha/hora según el estado
+                const fechaActual = obtenerFechaHoraActual();
+                if (nuevoEstado === 'proceso') {
+                    orden.fechaProceso = fechaActual;
+                } else if (nuevoEstado === 'completado') {
+                    orden.fechaCompletado = fechaActual;
+                } else if (nuevoEstado === 'pendiente') {
+                    orden.fechaPendiente = fechaActual;
+                }
+                
+                // Si no es "pendiente", limpiar el motivo
+                if (nuevoEstado !== 'pendiente') {
+                    orden.motivoPendiente = '';
+                }
+                
+                // Agregar al historial
+                if (!orden.historial) {
+                    orden.historial = [];
+                }
+                orden.historial.push({
+                    fecha: fechaActual,
+                    descripcion: `Estado cambiado de ${estadoAnterior} a ${nuevoEstado}`
+                });
+
+                // Guardar en Firebase
+                db.ref('ordenes').set(ordenes);
+                
+                // Crear notificación para el jefe
+                crearNotificacion(
+                    `Orden ${ordenId} actualizada`,
+                    `La orden ha cambiado de ${estadoAnterior} a ${nuevoEstado}`,
+                    'info',
+                    'RODRIGO'
+                );
+                
+                mostrarNotificacion(`Has actualizado la orden ${ordenId} a ${nuevoEstado}`, 'info');
+                actualizarDashboard();
+                actualizarTablaOrdenes();
+            }
+        }
+
+        // Función para cancelar una orden (con motivo)
+        function cancelarOrden(ordenId) {
+            const motivo = prompt('Ingrese el motivo de cancelación:');
+            if (motivo === null) return;
+            
+            const ordenIndex = ordenes.findIndex(o => o.id === ordenId);
+            if (ordenIndex !== -1) {
+                const orden = ordenes[ordenIndex];
+                orden.estado = 'cancelado';
+                orden.motivoCancelacion = motivo;
+                orden.motivoPendiente = '';
+                orden.fechaCancelacion = obtenerFechaHoraActual();
+                
+                // Agregar al historial
+                if (!orden.historial) {
+                    orden.historial = [];
+                }
+                orden.historial.push({
+                    fecha: obtenerFechaHoraActual(),
+                    descripcion: 'Orden cancelada',
+                    detalles: `Motivo: ${motivo}`
+                });
+
+                // Guardar en Firebase
+                db.ref('ordenes').set(ordenes);
+                
+                // Crear notificación para el jefe
+                crearNotificacion(
+                    `Orden ${ordenId} cancelada`,
+                    `La orden ha sido cancelada. Motivo: ${motivo}`,
+                    'error',
+                    'RODRIGO'
+                );
+                
+                mostrarNotificacion(`Orden ${ordenId} cancelada`, 'error');
+                actualizarDashboard();
+                actualizarTablaOrdenes();
+            }
+        }
+
+        // CORRECCIÓN 3: Función para crear notificación con sistema independiente
+        function crearNotificacion(titulo, mensaje, tipo = 'general', destinatario = null) {
+            const notificacion = {
+                titulo,
+                mensaje,
+                timestamp: Date.now(),
+                usuario: currentUser,
+                tipo,
+                destinatario: destinatario || currentUser // Por defecto para el usuario actual
+            };
+            
+            const nuevaNotificacionRef = db.ref('notificaciones').push();
+            notificacion.key = nuevaNotificacionRef.key; // Guardar la clave para poder eliminarla después
+            nuevaNotificacionRef.set(notificacion);
+        }
+
+        // CORRECCIÓN 3: Función para eliminar una notificación individual por clave
+        function eliminarNotificacion(notificacionKey) {
+            if (confirm('¿Está seguro de que desea eliminar esta notificación?')) {
+                db.ref('notificaciones/' + notificacionKey).remove();
+            }
+        }
+
+        // CORRECCIÓN 3: Función para limpiar solo las notificaciones del usuario actual
+        function limpiarTodasLasNotificaciones() {
+            if (confirm('¿Está seguro de que desea eliminar TODAS sus notificaciones?')) {
+                db.ref('notificaciones').once('value').then((snapshot) => {
+                    const notifsData = snapshot.val();
+                    if (notifsData) {
+                        const updates = {};
+                        Object.keys(notifsData).forEach(key => {
+                            const notif = notifsData[key];
+                            // Solo eliminar notificaciones del usuario actual
+                            if (notif.destinatario === currentUser || notif.destinatario === usuarios[currentUser]?.nombre) {
+                                updates['notificaciones/' + key] = null;
+                            }
+                        });
+                        db.ref().update(updates);
+                        mostrarNotificacion('Tus notificaciones han sido eliminadas', 'info');
+                    }
+                });
+            }
+        }
+
+        // Event Listeners
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.toUpperCase();
+            const password = document.getElementById('password').value;
+            
+            if (usuarios[username] && usuarios[username].password === password) {
+                currentUser = username;
+                currentRole = usuarios[username].role;
+                currentUserSpan.textContent = usuarios[username].nombre;
+                currentRoleSpan.textContent = currentRole === 'jefe' ? 'Jefe' : 'Responsable';
+                
+                // Configurar interfaz según el rol
+                if (currentRole === 'responsable') {
+                    document.getElementById('tabNuevaOrden').classList.add('hidden');
+                } else {
+                    document.getElementById('tabNuevaOrden').classList.remove('hidden');
+                }
+                
+                loginScreen.classList.add('hidden');
+                mainSystem.classList.remove('hidden');
+                
+                // Establecer fecha y hora actual
+                const ahora = new Date();
+                const fechaHoraLocal = new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                document.getElementById('fechaPedido').value = fechaHoraLocal;
+                
+                // Escuchar cambios en tiempo real de órdenes
+                db.ref('ordenes').on('value', (snapshot) => {
+                    ordenes = snapshot.val() || [];
+                    actualizarDashboard();
+                    actualizarTablaOrdenes();
+                });
+                
+                // CORRECCIÓN 3: Escuchar cambios en tiempo real de notificaciones con clave
+                db.ref('notificaciones').on('value', (snapshot) => {
+                    const notifsData = snapshot.val();
+                    if (notifsData) {
+                        // Convertir a array con claves
+                        notificaciones = Object.entries(notifsData).map(([key, value]) => {
+                            return { ...value, key: key };
+                        });
+                        
+                        // Ordenar por timestamp
+                        notificaciones.sort((a, b) => b.timestamp - a.timestamp);
+                        
+                        actualizarNotificaciones();
+                        
+                        // Mostrar notificación flotante para nuevas notificaciones del usuario actual
+                        if (notificaciones.length > 0) {
+                            const ultimaNotificacion = notificaciones[0];
+                            if (ultimaNotificacion.destinatario === currentUser && 
+                                ultimaNotificacion.timestamp > Date.now() - 10000) {
+                                mostrarNotificacion(ultimaNotificacion.mensaje, ultimaNotificacion.tipo);
+                            }
+                        }
+                    } else {
+                        notificaciones = [];
+                        actualizarNotificaciones();
+                    }
+                });
+                
+                // Monitorear estado de conexión
+                db.ref('.info/connected').on('value', (snapshot) => {
+                    const isConnected = snapshot.val();
+                    connectionStatus.classList.toggle('offline', !isConnected);
+                    connectionText.textContent = isConnected ? 'Conectado' : 'Desconectado';
+                });
+                
+                mostrarNotificacion(`Bienvenido ${usuarios[username].nombre}`, 'info');
+            } else {
+                alert('Usuario o contraseña incorrectos');
+            }
+        });
+
+        logoutBtn.addEventListener('click', function() {
+            currentUser = null;
+            currentRole = null;
+            mainSystem.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            loginForm.reset();
+            
+            // Desconectar listeners de Firebase
+            db.ref('ordenes').off();
+            db.ref('notificaciones').off();
+            db.ref('.info/connected').off();
+        });
+
+        // Event listeners para el modal de edición
+        closeModal.addEventListener('click', cerrarModalEdicion);
+        btnCancelarEdicion.addEventListener('click', cerrarModalEdicion);
+        btnGuardarEdicion.addEventListener('click', guardarCambiosEdicion);
+        btnEnviarComunicacion.addEventListener('click', enviarComunicacionJefe);
+
+        // Cerrar modal al hacer clic fuera del contenido
+        window.addEventListener('click', function(event) {
+            if (event.target === modalEditar) {
+                cerrarModalEdicion();
+            }
+        });
+
+        // Event listener para limpiar notificaciones
+        btnLimpiarNotificaciones.addEventListener('click', limpiarTodasLasNotificaciones);
+
+        // Navegación por pestañas
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabId = this.getAttribute('data-tab');
+                
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                    if (content.id === tabId) {
+                        content.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        // Guardar nueva orden
+        document.getElementById('btnGuardar').addEventListener('click', function() {
+            const solicitante = document.getElementById('solicitante').value;
+            const responsable = document.getElementById('responsable').value;
+            const maquina = document.getElementById('maquina').value;
+            const prioridad = document.getElementById('prioridad').value;
+            const descripcion = document.getElementById('descripcion').value;
+            const fechaPedido = document.getElementById('fechaPedido').value;
+            const fechaPrometida = document.getElementById('fechaPrometida').value;
+            const preventivo = document.getElementById('preventivo').checked;
+            const correctivo = document.getElementById('correctivo').checked;
+            const observaciones = document.getElementById('observaciones').value;
+            
+            if (!maquina || !descripcion || !fechaPrometida) {
+                alert('Por favor, complete todos los campos obligatorios');
+                return;
+            }
+            
+            const lineas = [];
+            if(document.getElementById('linea1').checked) lineas.push('Línea #1');
+            if(document.getElementById('linea2').checked) lineas.push('Línea #2');
+            if(document.getElementById('linea3').checked) lineas.push('Línea #3');
+            if(document.getElementById('linea6').checked) lineas.push('Línea #6');
+            
+            // Obtener el contador actual
+            db.ref('contador').once('value').then((snapshot) => {
+                let contador = snapshot.val() || 1;
+                
+                const nuevaOrden = {
+                    id: generarNumeroOrden(contador),
+                    solicitante,
+                    responsable,
+                    maquina,
+                    estado: 'pendiente',
+                    prioridad,
+                    descripcion,
+                    fechaPedido,
+                    fechaPrometida,
+                    tipoMantenimiento: preventivo ? (correctivo ? 'Preventivo y Correctivo' : 'Preventivo') : (correctivo ? 'Correctivo' : ''),
+                    lineas,
+                    observaciones,
+                    timestamp: Date.now(),
+                    fechaPendiente: obtenerFechaHoraActual(),
+                    historial: [{
+                        fecha: obtenerFechaHoraActual(),
+                        descripcion: 'Orden creada',
+                        detalles: `Creada por: ${solicitante}`
+                    }]
+                };
+                
+                // Guardar en Firebase
+                ordenes.push(nuevaOrden);
+                db.ref('ordenes').set(ordenes);
+                
+                // Incrementar contador
+                contador++;
+                db.ref('contador').set(contador);
+                
+                // Crear notificación para el responsable
+                crearNotificacion(
+                    'Nueva orden de trabajo asignada',
+                    `Se te ha asignado una nueva orden: ${nuevaOrden.id}`,
+                    prioridad === 'urgente' ? 'urgente' : 'general',
+                    'BENITO'
+                );
+                
+                // Limpiar formulario
+                document.getElementById('maquina').value = '';
+                document.getElementById('descripcion').value = '';
+                document.getElementById('fechaPrometida').value = '';
+                document.getElementById('preventivo').checked = false;
+                document.getElementById('correctivo').checked = false;
+                document.getElementById('linea1').checked = false;
+                document.getElementById('linea2').checked = false;
+                document.getElementById('linea3').checked = false;
+                document.getElementById('linea6').checked = false;
+                document.getElementById('observaciones').value = '';
+                
+                mostrarNotificacion(`Orden ${nuevaOrden.id} creada y asignada a ${responsable}`, 'info');
+            });
+        });
+
+        // Cancelar formulario
+        document.getElementById('btnCancelar').addEventListener('click', function() {
+            if(confirm('¿Está seguro de que desea cancelar?')) {
+                document.getElementById('maquina').value = '';
+                document.getElementById('descripcion').value = '';
+                document.getElementById('fechaPrometida').value = '';
+                document.getElementById('preventivo').checked = false;
+                document.getElementById('correctivo').checked = false;
+                document.getElementById('linea1').checked = false;
+                document.getElementById('linea2').checked = false;
+                document.getElementById('linea3').checked = false;
+                document.getElementById('linea6').checked = false;
+                document.getElementById('observaciones').value = '';
+            }
+        });
+
+        // 🔄 BOTÓN PARA LIMPIAR BASE DE DATOS (solo para desarrollo)
+        setTimeout(() => {
+            if (document.querySelector('.user-info')) {
+                const btnLimpiarBD = document.createElement('button');
+                btnLimpiarBD.textContent = '🧹 Limpiar BD';
+                btnLimpiarBD.className = 'btn btn-danger';
+                btnLimpiarBD.style.marginLeft = '10px';
+                btnLimpiarBD.onclick = limpiarBaseDeDatos;
+                document.querySelector('.user-info').appendChild(btnLimpiarBD);
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
